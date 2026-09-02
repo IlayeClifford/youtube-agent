@@ -1,0 +1,25 @@
+youtube-search
+langchain_deepseek
+langchain
+langchain_community
+langgraph
+langchain-text-splitters
+faiss-cpu
+sentence-transformers
+langchain-huggingface
+langgraph-supervisor
+langsmith
+youtube-transcript-api 
+ddgs
+langchain-core
+fastapi 
+uvicorn[standard]
+deepgram-sdk
+google-api-python-client
+#run npm install react-markdown remark-gfm remark-breaks
+langchain-tavily
+tavily
+langchain_qdrant
+qdrant-client
+firecrawl-py
+firecrawl
