@@ -2,23 +2,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { X, Youtube, Clock, Sparkles, ArrowUp, Square, Mic, Loader2, AlertCircle, PanelRightOpen, Play, Wand2, Volume2, ThumbsUp, ThumbsDown, HelpCircle } from "lucide-react";
-import { C, FONT_IMPORT_URL } from "./lib/theme";
+import { C } from "./lib/theme";
 import { MODES_META, MODE_ORDER } from "./lib/modes";
 import { FACTS } from "./lib/facts";
 import { extractVideos, stripVideoUrls, dedupeVideos, fmtTime } from "./lib/youtube";
-import { useAgentStream } from "./hooks/useAgentStream";
+import { useAnnaAgentStream } from "./hooks/useAnnaAgentStream";
 import { useVoiceInput } from "./hooks/useVoiceInput";
 import ModesOverlay from "./components/ModesOverlay";
 
-const WS_URL = import.meta.env.VITE_WS_URL || "ws://10.252.201.247:8000/ws/chat";
-const STT_URL =
-  import.meta.env.VITE_STT_URL || WS_URL.replace(/^ws/, "http").replace("/ws/chat", "/api/stt");
-const TTS_URL =
-  import.meta.env.VITE_TTS_URL || WS_URL.replace(/^ws/, "http").replace("/ws/chat", "/api/tts");
-const FEEDBACK_URL =
-  import.meta.env.VITE_FEEDBACK_URL || WS_URL.replace(/^ws/, "http").replace("/ws/chat", "/api/feedback");
-const FEEDBACK_TEXT_URL =
-  import.meta.env.VITE_FEEDBACK_TEXT_URL || WS_URL.replace(/^ws/, "http").replace("/ws/chat", "/api/feedback-text");
+// NOTE: the old WS_URL / STT_URL / TTS_URL / FEEDBACK_URL / FEEDBACK_TEXT_URL
+// constants (pointing at a hardcoded-IP bridge server) are gone. Every call
+// that used to hit that bridge now goes through `invokeTool`, the Anna SDK
+// wrapper returned by useAnnaAgentStream — see AudioPlayButton,
+// FeedbackButtons, FeedbackModal, and the useVoiceInput() call inside App().
 
 const MOCK_CHUNKS = {};
 const COMPOSER_MAX_WIDTH = 960;
@@ -159,14 +155,17 @@ function VideoCard({ video }) {
 // vertically, no cap, no horizontal scrolling. Bob's full response text
 // stays intact above this (no longer split mid-list), each video gets its
 // timestamp label if it has one.
-// Mobile only — horizontal scroll, snap-to-center, Shorts get a narrower
-// vertical card, normal videos get a wider one.
-function MobileVideoCarousel({ videos }) {
+function MobileVideoStack({ videos }) {
   if (!videos.length) return null;
   return (
-    <div className="mt-2 -mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-1 lg:hidden">
+    <div className="mt-2 space-y-3 lg:hidden">
       {videos.map((v) => (
-        <div key={v.url} className={`shrink-0 snap-center ${v.short ? "w-[62%] max-w-[240px]" : "w-[92%] max-w-[420px]"}`}>
+        <div key={v.url}>
+          {v.start > 0 && (
+            <div className="mb-1 flex items-center gap-1 text-[11px]" style={{ color: C.cyan }}>
+              <Clock size={10} /> Bob means this part — {fmtTime(v.start)}
+            </div>
+          )}
           <VideoCard video={v} />
         </div>
       ))}
@@ -174,7 +173,9 @@ function MobileVideoCarousel({ videos }) {
   );
 }
 
-function FeedbackButtons({ runId }) {
+// invokeTool is the Anna SDK wrapper from useAnnaAgentStream — replaces the
+// old fetch(FEEDBACK_URL) call to the retired bridge server.
+function FeedbackButtons({ runId, invokeTool }) {
   const [rated, setRated] = useState(null); // null | "up" | "down"
 
   if (!runId) return null;
@@ -183,11 +184,7 @@ function FeedbackButtons({ runId }) {
     if (rated) return; // one rating per message
     setRated(label);
     try {
-      await fetch(FEEDBACK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ run_id: runId, score }),
-      });
+      await invokeTool("feedback", { text: `rating:${label} run_id:${runId}` });
     } catch {
       // A rating silently failing to save isn't worth interrupting the user over.
     }
@@ -219,7 +216,8 @@ function FeedbackButtons({ runId }) {
 
 // Small speaker button on each finished agent reply — generates TTS on tap
 // and plays it. Nothing plays automatically; this is opt-in per message.
-function AudioPlayButton({ text }) {
+// invokeTool replaces the old fetch(TTS_URL) call to the retired bridge.
+function AudioPlayButton({ text, invokeTool }) {
   const [state, setState] = useState("idle"); // idle | loading | playing
   const audioRef = useRef(null);
 
@@ -231,14 +229,8 @@ function AudioPlayButton({ text }) {
     }
     setState("loading");
     try {
-      const res = await fetch(TTS_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
-      if (!res.ok) throw new Error("tts failed");
-      const data = await res.json();
-      if (!data.audio_b64) throw new Error("no audio");
+      const data = await invokeTool("tts", { text });
+      if (!data?.audio_b64) throw new Error("no audio");
       const audio = new Audio(`data:audio/mp3;base64,${data.audio_b64}`);
       audioRef.current = audio;
       audio.onended = () => setState("idle");
@@ -262,7 +254,7 @@ function AudioPlayButton({ text }) {
   );
 }
 
-function MessageBubble({ msg, registerVideoNode }) {
+function MessageBubble({ msg, registerVideoNode, invokeTool }) {
   const isAgent = msg.role === "agent";
   const cleanText = stripVideoUrls(msg.text);
   const videos = useMemo(() => dedupeVideos(extractVideos(msg.text)), [msg.text]);
@@ -309,13 +301,13 @@ function MessageBubble({ msg, registerVideoNode }) {
 
           {isAgent && !msg.streaming && cleanText && (
             <div className="mt-1.5 flex items-center gap-1.5">
-              <AudioPlayButton text={cleanText} />
-              <FeedbackButtons runId={msg.runId} />
+              <AudioPlayButton text={cleanText} invokeTool={invokeTool} />
+              <FeedbackButtons runId={msg.runId} invokeTool={invokeTool} />
             </div>
           )}
 
           {/* Mobile — only the non-timestamped links land here now */}
-          <MobileVideoCarousel videos={videos} />
+          <MobileVideoStack videos={videos} />
         </div>
       </div>
     </div>
@@ -350,10 +342,6 @@ function WatchPanel({ videos, open, onClose }) {
   );
 }
 
-// Mobile equivalent of WatchPanel — a full-screen overlay instead of a side
-// panel, since there's no room for a persistent 50%-width sidebar on a
-// phone. Lists every video from the whole thread; separate from the
-// per-message inline carousel, which stays in place in the chat itself.
 // Floating, draggable Videos trigger — mobile only. Defaults to bottom-left;
 // dragging is session-only (resets to default on reload, nothing persisted).
 // Pointer events cover touch and mouse in one code path. A small movement
@@ -457,7 +445,9 @@ function CapabilitiesOverlay({ open, onClose }) {
   );
 }
 
-function FeedbackModal({ open, onClose }) {
+// invokeTool replaces the old fetch(FEEDBACK_TEXT_URL) call to the retired
+// bridge server.
+function FeedbackModal({ open, onClose, invokeTool }) {
   const [text, setText] = useState("");
   const [status, setStatus] = useState("idle"); // idle | sending | sent | error
 
@@ -467,12 +457,7 @@ function FeedbackModal({ open, onClose }) {
     if (!text.trim()) return;
     setStatus("sending");
     try {
-      const res = await fetch(FEEDBACK_TEXT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
-      if (!res.ok) throw new Error();
+      await invokeTool("feedback", { text });
       setStatus("sent");
     } catch {
       setStatus("error");
@@ -775,7 +760,7 @@ function ModeTeaser({ onPick }) {
 }
 
 export default function App() {
-  const { messages, thinking, connected, send, sendMode } = useAgentStream(WS_URL);
+  const { messages, thinking, connected, send, sendMode, appendLocalMessages, invokeTool } = useAnnaAgentStream();
   const [input, setInput] = useState("");
 
   const [videoHistory, setVideoHistory] = useState([]);
@@ -791,6 +776,7 @@ export default function App() {
   const [activeMode, setActiveMode] = useState(null);
 
   const scrollRef = useRef(null);
+  const isNearBottomRef = useRef(true);
   const desktopTextareaRef = useRef(null);
   const mobileTextareaRef = useRef(null);
   const videoNodeMap = useRef(new Map());
@@ -802,9 +788,25 @@ export default function App() {
   const handleTranscribed = useCallback((text) => {
     setInput((prev) => (prev ? `${prev} ${text}` : text));
   }, []);
-  const voice = useVoiceInput(STT_URL, handleTranscribed);
+  const voice = useVoiceInput(invokeTool, handleTranscribed);
+
+  // Tracks whether the user is currently near the bottom of the chat, so the
+  // auto-scroll below only fires when they're actively following along —
+  // not every time a status update ticks in while they're scrolled up
+  // looking at something (like a video) on purpose.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      isNearBottomRef.current = distanceFromBottom < 120;
+    };
+    el.addEventListener("scroll", handleScroll);
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
+    if (!isNearBottomRef.current) return;
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
@@ -860,7 +862,7 @@ export default function App() {
 
   return (
     <div className="app-shell flex w-full overflow-hidden" style={{ background: C.bg, fontFamily: "'Inter', sans-serif" }}>
-      <style>{`@import url('${FONT_IMPORT_URL}');
+      <style>{`
         .app-shell { height: 100vh; }
         @supports (height: 100dvh) { .app-shell { height: 100dvh; } }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -968,7 +970,7 @@ export default function App() {
             <EmptyState onPick={(text) => submit(text)} />
           ) : (
             messages.map((m) =>
-              m.role === "agent" && m.streaming && !m.text ? <TypingIndicator key={m.id} status={m.status} /> : <MessageBubble key={m.id} msg={m} registerVideoNode={registerVideoNode} />
+              m.role === "agent" && m.streaming && !m.text ? <TypingIndicator key={m.id} status={m.status} /> : <MessageBubble key={m.id} msg={m} registerVideoNode={registerVideoNode} invokeTool={invokeTool} />
             )
           )}
         </div>
@@ -1087,7 +1089,7 @@ export default function App() {
 
       <ModesOverlay open={modesOpen} onClose={() => setModesOpen(false)} onActivate={handleModeActivate} initialSelected={modesInitialSelected} />
       <CapabilitiesOverlay open={capabilitiesOpen} onClose={() => setCapabilitiesOpen(false)} />
-      <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
+      <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} invokeTool={invokeTool} />
     </div>
   );
 }

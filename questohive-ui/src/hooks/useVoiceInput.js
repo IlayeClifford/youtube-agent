@@ -2,12 +2,31 @@ import { useCallback, useRef, useState } from "react";
 
 const MAX_SECONDS = 60;
 
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      // reader.result is "data:audio/webm;base64,AAAA..." — strip the prefix.
+      const commaIdx = reader.result.indexOf(",");
+      resolve(reader.result.slice(commaIdx + 1));
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 /**
  * Handles mic recording + transcription. Never sends the result anywhere
  * automatically — it calls `onTranscribed(text)` so the caller can drop it
  * into the composer input for the user to review and edit before sending.
+ *
+ * `invokeTool` is the helper returned by useAnnaAgentStream — this routes
+ * through anna.tools.invoke({tool_id, method: "stt", args: {audio_b64}})
+ * instead of a raw fetch() to a separate bridge server, which does not
+ * exist when running under `anna-app dev` (or in production — bob_plugin's
+ * own handle_stt is the only STT surface now).
  */
-export function useVoiceInput(sttUrl, onTranscribed) {
+export function useVoiceInput(invokeTool, onTranscribed) {
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -64,15 +83,9 @@ export function useVoiceInput(sttUrl, onTranscribed) {
 
         setTranscribing(true);
         try {
-          const form = new FormData();
-          form.append("file", blob, "voice.webm");
-          const res = await fetch(sttUrl, { method: "POST", body: form });
-          if (!res.ok) {
-            const body = await res.json().catch(() => ({}));
-            throw new Error(body.detail || "Transcription failed. Try typing instead.");
-          }
-          const data = await res.json();
-          onTranscribed(data.text || "");
+          const audio_b64 = await blobToBase64(blob);
+          const data = await invokeTool("stt", { audio_b64 });
+          onTranscribed(data?.text || "");
         } catch (err) {
           setWarning(err.message || "Couldn't transcribe that. Try typing instead.");
         } finally {
@@ -96,7 +109,7 @@ export function useVoiceInput(sttUrl, onTranscribed) {
     } catch {
       setWarning("Microphone access was blocked or unavailable.");
     }
-  }, [recording, transcribing, sttUrl, onTranscribed]);
+  }, [recording, transcribing, invokeTool, onTranscribed]);
 
   const stop = useCallback(() => {
     const recorder = recorderRef.current;

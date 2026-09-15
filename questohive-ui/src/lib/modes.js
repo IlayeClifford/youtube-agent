@@ -17,12 +17,49 @@ export const PODCAST_CATEGORIES = [
 ];
 
 export const ENTERTAINMENT_CATEGORIES = [
-  { cluster: "🎪 High-Stakes Challenges & Spectacle", items: ["Mega-Challenges & Survival", "Real-Life Game Shows", "Large-Scale Philanthropy", "Multi-Creator Collaborations"] },
-  { cluster: "😂 Comedy, Sketches & Commentary", items: ["Scripted Sketches & Skits", "Internet Commentary & Roasts", "Public Pranks & Social Situations", "Meme & Satirical Compilations"] },
-  { cluster: "🎬 Cinema, TV & Pop Culture Fandom", items: ["Movie & Show Recaps", "Video Essays & Lore Deep-Dives", "Trailers & Fan Reactions", "Fan Films & Analog Horror"] },
-  { cluster: "✨ Digital Magic, VFX & Visual Wonder", items: ["VFX & Camera Magic", "Street Magic & Mentalism", "Oddly Satisfying & ASMR", "CGI & Deepfake Entertainment"] },
-  { cluster: "🎮 Gaming & Virtual Entertainment", items: ["Edited Let's Plays & Horror Gameplay", "Speedruns & Constraint Challenges", "VTuber Highlights", "Gaming Machinima & Animation"] },
-  { cluster: "🕵️ Narrative Mysteries & True Crime", items: ["Internet Mysteries & Icebergs", "True Crime & Interrogation Analysis", "Dark History Documentaries", "Creepypastas & Audio Dramas"] },
+
+  { cluster: "🎪 Big Challenges & Events", items: [
+    "Big Challenges & Survival",
+    "Real-Life Game Shows",
+    "Big Charity Projects",
+    "Creator Collaborations"
+  ]},
+
+  { cluster: "😂 Comedy & Commentary", items: [
+    "Comedy Sketches & Skits",
+    "Commentary & Roasts",
+    "Pranks & Social Experiments",
+    "Memes & Satire"
+  ]},
+
+  { cluster: "🎬 Movies, TV & Pop Culture", items: [
+    "Movie & Show Recaps",
+    "Story & Lore Explainers",
+    "Trailers & Fan Reactions",
+    "Fan Films & Scary Stories"
+  ]},
+
+  { cluster: "✨ Magic & Visual Effects", items: [
+    "Special Effects & Camera Tricks",
+    "Street Magic & Mind Tricks",
+    "Satisfying Videos & Relaxing Sounds",
+    "Computer-Generated & AI Videos"
+  ]},
+
+  { cluster: "🎮 Gaming & Virtual Worlds", items: [
+    "Edited Gameplay & Horror Games",
+    "Speedruns & Challenge Runs",
+    "Virtual Character Highlights",
+    "Game-Based Stories & Animation"
+  ]},
+
+  { cluster: "🕵️ Mysteries & True Crime", items: [
+    "Internet Mysteries & Hidden Stories",
+    "True Crime & Interrogation Breakdowns",
+    "Dark History",
+    "Scary Stories & Audio Dramas"
+  ]},
+
 ];
 
 export const BUSINESS_CATEGORIES = [
