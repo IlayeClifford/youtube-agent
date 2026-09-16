@@ -1,0 +1,43 @@
+{
+  "schema": 2,
+  "permissions": ["tools.invoke", "storage.read", "storage.write"],
+  "host_capabilities": ["aps.kv"],
+  "required_executas": [
+    {
+      "tool_id": "tool-dev-my-first-anna-app"
+    }
+  ],
+  "tags": ["my-first-anna-app"],
+  "ui": {
+    "bundle": {
+      "format": "static-spa",
+      "entry": "index.html",
+      "external_origins": [
+        "https://www.youtube-nocookie.com",
+        "https://img.youtube.com"
+      ]
+    },
+    "views": [
+      {
+        "name": "main",
+        "title": "my-first-anna-app",
+        "default": true,
+        "default_size": { "w": 480, "h": 360 },
+        "min_size": { "w": 320, "h": 240 }
+      }
+    ],
+    "host_api": {
+      "tools": ["tool-dev-my-first-anna-app"],
+      "storage": ["get", "set"]
+    },
+    "csp_overrides": {
+      "img-src": ["https://img.youtube.com"]
+    },
+    "state_merge": "last_writer_wins"
+  },
+  "dev": {
+    "fixtures": ["fixtures/*.jsonl"],
+    "seed_storage": {},
+    "user_id": 1
+  }
+}

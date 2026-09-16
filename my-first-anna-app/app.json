@@ -1,0 +1,11 @@
+{
+  "name": "my-first-anna-app",
+  "tagline": "TODO",
+  "description": "TODO",
+  "category": "productivity",
+  "bundled_executas": {
+    "my-first-anna-app": {
+      "path": "./Youtube_Bot/my-first-anna-app"
+    }
+  }
+}
