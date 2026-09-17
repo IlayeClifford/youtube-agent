@@ -6,11 +6,13 @@ from youtube_transcript_api.proxies import GenericProxyConfig
 
 from langchain_core.tools import tool
 from langchain_core.documents import Document
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_qdrant import QdrantVectorStore
-
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qmodels
+from fastembed import TextEmbedding
+from langchain_core.embeddings import Embeddings
+from typing import List
+from pathlib import Path
 
 load_dotenv()
 
@@ -20,8 +22,25 @@ QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 COLLECTION_NAME = "video_transcripts"
 CHUNK_INTERVAL_SECONDS = 30  # single source of truth for chunk window size
 
-embedding = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
+class FastEmbedEmbeddings(Embeddings):
+    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
+        cache_dir = Path.home() / ".cache" / "fastembed"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        self._model = TextEmbedding(
+            model_name=model_name,
+            cache_dir=str(cache_dir),
+            local_files_only=False,
+        )
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        return [vector.tolist() for vector in self._model.embed(texts)]
+
+    def embed_query(self, text: str) -> List[float]:
+        return self.embed_documents([text])[0]
+
+
+embeddings = FastEmbedEmbeddings()
 
 VECTOR_SIZE = 384
 
@@ -78,7 +97,7 @@ ensure_collection()
 vectorstore = QdrantVectorStore(
     client=client,
     collection_name=COLLECTION_NAME,
-    embedding=embedding,
+    embedding=embeddings,
 )
 
 # Videos already confirmed indexed during this process's lifetime.
@@ -204,7 +223,7 @@ def get_or_build_index(video_id, interval=CHUNK_INTERVAL_SECONDS):
     _indexed_cache.add(video_id)
 
 
-#@tool
+@tool
 def transcription(video_id: str, query: str) -> str:
     """Search a YouTube video's transcript in detail for content relevant to a query.
 
