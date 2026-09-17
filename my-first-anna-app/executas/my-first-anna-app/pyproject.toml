@@ -23,7 +23,7 @@ dependencies = [
     "groq>=0.11.0",
     "deepgram-sdk>=3.0.0",
     "qdrant-client>=1.9.0",       # bundles grpcio/grpcio-tools, so prefer_grpc=True needs nothing extra
-    "langchain-qdrant>=0.1.0",
+    "langchain-qdrant>=0.1.0", 
     "langchain-huggingface>=0.1.0",  # only needed if something other than the transcript tool still uses HuggingFaceEmbeddings — remove if not
     "firecrawl-py",
     "python-dotenv",
@@ -43,4 +43,15 @@ dependencies = [
 "tool-dev-my-first-anna-app" = "bob_plugin:main"
 
 [tool.setuptools]
-py-modules = ["bob_plugin"]
+py-modules = [
+    "bob_plugin",
+    "main",
+    "modes",
+    "transcript",
+    "search",
+    "web_search",
+    "metadata",
+    "server",
+    "stt",
+    "tts",
+]

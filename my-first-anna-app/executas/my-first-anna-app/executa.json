@@ -1,0 +1,25 @@
+{
+  "slug": "my-first-anna-app",
+  "name": "my-first-anna-app",
+  "version": "0.3.0",
+  "executa_type": "tool",
+  "description": "Bob — a YouTube research and download assistant.",
+  "tool_id": "tool-dev-my-first-anna-app",
+  "type": "python",
+
+  "distribution": {
+    "profiles": {
+      "active": "binary",
+      "binary": {
+        "type": "binary"
+      }
+    }
+  },
+
+  "binary_artifacts": [
+    { "platform": "darwin-arm64",   "path": "dist-anna/my-first-anna-app-0.3.0-darwin-arm64.tar.gz" },
+    { "platform": "darwin-x86_64",  "path": "dist-anna/my-first-anna-app-0.3.0-darwin-x86_64.tar.gz" },
+    { "platform": "linux-x86_64",   "path": "dist-anna/my-first-anna-app-0.3.0-linux-x86_64.tar.gz" },
+    { "platform": "windows-x86_64", "path": "dist-anna/my-first-anna-app-0.3.0-windows-x86_64.zip" }
+  ]
+}

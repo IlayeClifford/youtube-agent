@@ -6,7 +6,6 @@ from youtube_transcript_api.proxies import GenericProxyConfig
 
 from langchain_core.tools import tool
 from langchain_core.documents import Document
-from fastembed import TextEmbedding
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_qdrant import QdrantVectorStore
 

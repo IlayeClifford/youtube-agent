@@ -1,0 +1,172 @@
+name: Build Executa Binaries (Bob)
+
+# Manual trigger only, per the request — no push/release-event trigger.
+# Run from the Actions tab: select this workflow -> "Run workflow".
+# Optionally set `release_tag` to control which GitHub Release the
+# artifacts land on; if left blank, a tag is derived from executa.json's
+# version (v0.3.0 -> executa-v0.3.0).
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to upload assets to (blank = derive from executa.json version)"
+        required: false
+        default: ""
+
+env:
+  EXECUTA_DIR: my-first-anna-app/executas/my-first-anna-app
+  EXECUTA_NAME: my-first-anna-app
+  EXECUTA_VERSION: "0.3.0"
+
+jobs:
+  build:
+    name: Build (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Runner-tag reasoning (confirmed against GitHub's own current
+          # hosted-runners reference, not assumed):
+          #   - ubuntu-latest / windows-latest are unambiguous x64.
+          #   - macos-latest now resolves to Apple Silicon (arm64) --
+          #     it used to mean Intel. Using it for darwin-x86_64 would
+          #     silently build the wrong architecture.
+          #   - Intel Mac therefore needs the EXPLICIT macos-15-intel
+          #     label; there is no ambiguous shorthand for it anymore.
+          - platform: darwin-arm64
+            os: macos-latest
+            archive_ext: tar.gz
+          - platform: darwin-x86_64
+            os: macos-15-intel
+            archive_ext: tar.gz
+          - platform: linux-x86_64
+            os: ubuntu-latest
+            archive_ext: tar.gz
+          - platform: windows-x86_64
+            os: windows-latest
+            archive_ext: zip
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install project + PyInstaller
+        working-directory: ${{ env.EXECUTA_DIR }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+          pip install pyinstaller
+
+      - name: Build with PyInstaller (--onedir)
+        working-directory: ${{ env.EXECUTA_DIR }}
+        run: pyinstaller --noconfirm pyinstaller.spec
+
+      # ---- Unix packaging (macOS + Linux) ----------------------------
+      - name: Package (macOS / Linux)
+        if: runner.os != 'Windows'
+        working-directory: ${{ env.EXECUTA_DIR }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          PLATFORM="${{ matrix.platform }}"
+          NAME="${EXECUTA_NAME}"
+          STAGE="dist-anna/staging-${PLATFORM}"
+          rm -rf "$STAGE"
+          mkdir -p "$STAGE/bin"
+
+          SRC="dist/${NAME}"
+          if [ ! -d "$SRC" ]; then
+            echo "PyInstaller did not produce $SRC" >&2
+            exit 1
+          fi
+
+          mv "$SRC/${NAME}" "$STAGE/bin/"
+          chmod 0755 "$STAGE/bin/${NAME}"
+
+          # _internal/ MUST stay next to the launcher in bin/ -- PyInstaller's
+          # onedir bootloader hard-codes dirname(argv[0])/_internal/ for
+          # libpython, frozen modules, etc. Moving it breaks the first dlopen.
+          if [ -d "$SRC/_internal" ]; then
+            mv "$SRC/_internal" "$STAGE/bin/_internal"
+          fi
+
+          # manifest.json is the canonical entrypoint declaration -- must be
+          # present at the archive root (Anna's Common Pitfalls #6).
+          cp manifest.json "$STAGE/"
+
+          mkdir -p dist-anna
+          ARCHIVE="dist-anna/${NAME}-${EXECUTA_VERSION}-${PLATFORM}.tar.gz"
+          ( cd "$STAGE" && tar czf "../../$ARCHIVE" . )
+          echo "ARCHIVE_PATH=${ARCHIVE}" >> "$GITHUB_ENV"
+
+      # ---- Windows packaging ------------------------------------------
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        working-directory: ${{ env.EXECUTA_DIR }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $Platform = "${{ matrix.platform }}"
+          $Name = $env:EXECUTA_NAME
+          $Stage = "dist-anna/staging-$Platform"
+          Remove-Item -Recurse -Force $Stage -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path "$Stage/bin" | Out-Null
+
+          $Src = "dist/$Name"
+          if (-not (Test-Path $Src)) {
+            Write-Error "PyInstaller did not produce $Src"
+            exit 1
+          }
+
+          Move-Item "$Src/$Name.exe" "$Stage/bin/"
+          if (Test-Path "$Src/_internal") {
+            Move-Item "$Src/_internal" "$Stage/bin/_internal"
+          }
+          Copy-Item manifest.json "$Stage/"
+
+          New-Item -ItemType Directory -Force -Path dist-anna | Out-Null
+          $Archive = "dist-anna/$Name-$env:EXECUTA_VERSION-$Platform.zip"
+          Compress-Archive -Path "$Stage/*" -DestinationPath $Archive
+          Add-Content -Path $env:GITHUB_ENV -Value "ARCHIVE_PATH=$Archive"
+
+      # ---- Checksum (all platforms) ------------------------------------
+      - name: Generate SHA-256 checksum
+        working-directory: ${{ env.EXECUTA_DIR }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum "$ARCHIVE_PATH" > "${ARCHIVE_PATH}.sha256"
+          echo "── $ARCHIVE_PATH ──"
+          cat "${ARCHIVE_PATH}.sha256"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.EXECUTA_NAME }}-${{ matrix.platform }}
+          path: |
+            ${{ env.EXECUTA_DIR }}/dist-anna/*.tar.gz
+            ${{ env.EXECUTA_DIR }}/dist-anna/*.zip
+            ${{ env.EXECUTA_DIR }}/dist-anna/*.sha256
+
+      - name: Resolve release tag
+        shell: bash
+        run: |
+          TAG="${{ github.event.inputs.release_tag }}"
+          if [ -z "$TAG" ]; then
+            TAG="executa-v${EXECUTA_VERSION}"
+          fi
+          echo "RELEASE_TAG=${TAG}" >> "$GITHUB_ENV"
+
+      - name: Publish to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          draft: false
+          files: |
+            ${{ env.EXECUTA_DIR }}/dist-anna/*.tar.gz
+            ${{ env.EXECUTA_DIR }}/dist-anna/*.zip
+            ${{ env.EXECUTA_DIR }}/dist-anna/*.sha256
