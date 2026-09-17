@@ -65,7 +65,15 @@ jobs:
 
       - name: Build with PyInstaller (--onedir)
         working-directory: ${{ env.EXECUTA_DIR }}
-        run: pyinstaller --noconfirm pyinstaller.spec
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf build dist
+          python -m PyInstaller \
+            --clean \
+            --noconfirm \
+            --log-level=INFO \
+            pyinstaller.spec
 
       # ---- Unix packaging (macOS + Linux) ----------------------------
       - name: Package (macOS / Linux)
