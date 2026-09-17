@@ -24,16 +24,12 @@ dependencies = [
     "deepgram-sdk>=3.0.0",
     "qdrant-client>=1.9.0",       # bundles grpcio/grpcio-tools, so prefer_grpc=True needs nothing extra
     "langchain-qdrant>=0.1.0", 
-    "langchain-huggingface>=0.1.0",  # only needed if something other than the transcript tool still uses HuggingFaceEmbeddings — remove if not
     "firecrawl-py",
     "python-dotenv",
     "langchain>=1.4.0",
-    "langchain-tavily>=0.2.18",
-    "sentence-transformers>=6.0.1",  # only needed if something other than the transcript tool still uses it — remove if not
     "yt-dlp[default]>=2026.8.19",
     "ffmpeg-python>=0.2.0",
     "boto3>=1.43.89",
-    "langchain-community>=0.4.2",    # required for FastEmbedEmbeddings
     "fastembed>=0.8.0",              # required for FastEmbedEmbeddings
     "b2sdk>=2.12.0",
     "curl-cffi>=0.16.3",
