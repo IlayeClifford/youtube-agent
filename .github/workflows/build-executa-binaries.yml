@@ -67,6 +67,7 @@ jobs:
         working-directory: ${{ env.EXECUTA_DIR }}
         run: pyinstaller --noconfirm pyinstaller.spec
 
+      # ---- Unix packaging (macOS + Linux) ----------------------------
       - name: Package (macOS / Linux)
         if: runner.os != 'Windows'
         working-directory: ${{ env.EXECUTA_DIR }}
@@ -99,6 +100,7 @@ jobs:
           ( cd "$STAGE" && tar czf "../../$ARCHIVE" . )
           echo "ARCHIVE_PATH=${ARCHIVE}" >> "$GITHUB_ENV"
 
+      # ---- Windows packaging ------------------------------------------
       - name: Package (Windows)
         if: runner.os == 'Windows'
         working-directory: ${{ env.EXECUTA_DIR }}
@@ -128,6 +130,7 @@ jobs:
           Compress-Archive -Path "$Stage/*" -DestinationPath $Archive
           Add-Content -Path $env:GITHUB_ENV -Value "ARCHIVE_PATH=$Archive"
 
+      # ---- Checksum (all platforms) ------------------------------------
       - name: Generate SHA-256 checksum
         working-directory: ${{ env.EXECUTA_DIR }}
         shell: bash
