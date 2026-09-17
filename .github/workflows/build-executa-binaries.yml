@@ -13,6 +13,9 @@ on:
         required: false
         default: ""
 
+permissions:
+  contents: write
+
 env:
   EXECUTA_DIR: my-first-anna-app/executas/my-first-anna-app
   EXECUTA_NAME: my-first-anna-app
@@ -22,18 +25,12 @@ jobs:
   build:
     name: Build (${{ matrix.platform }})
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Runner-tag reasoning (confirmed against GitHub's own current
-          # hosted-runners reference, not assumed):
-          #   - ubuntu-latest / windows-latest are unambiguous x64.
-          #   - macos-latest now resolves to Apple Silicon (arm64) --
-          #     it used to mean Intel. Using it for darwin-x86_64 would
-          #     silently build the wrong architecture.
-          #   - Intel Mac therefore needs the EXPLICIT macos-15-intel
-          #     label; there is no ambiguous shorthand for it anymore.
           - platform: darwin-arm64
             os: macos-latest
             archive_ext: tar.gz
@@ -54,6 +51,11 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.x"
+
       - name: Install project + PyInstaller
         working-directory: ${{ env.EXECUTA_DIR }}
         run: |
@@ -65,7 +67,6 @@ jobs:
         working-directory: ${{ env.EXECUTA_DIR }}
         run: pyinstaller --noconfirm pyinstaller.spec
 
-      # ---- Unix packaging (macOS + Linux) ----------------------------
       - name: Package (macOS / Linux)
         if: runner.os != 'Windows'
         working-directory: ${{ env.EXECUTA_DIR }}
@@ -87,15 +88,10 @@ jobs:
           mv "$SRC/${NAME}" "$STAGE/bin/"
           chmod 0755 "$STAGE/bin/${NAME}"
 
-          # _internal/ MUST stay next to the launcher in bin/ -- PyInstaller's
-          # onedir bootloader hard-codes dirname(argv[0])/_internal/ for
-          # libpython, frozen modules, etc. Moving it breaks the first dlopen.
           if [ -d "$SRC/_internal" ]; then
             mv "$SRC/_internal" "$STAGE/bin/_internal"
           fi
 
-          # manifest.json is the canonical entrypoint declaration -- must be
-          # present at the archive root (Anna's Common Pitfalls #6).
           cp manifest.json "$STAGE/"
 
           mkdir -p dist-anna
@@ -103,7 +99,6 @@ jobs:
           ( cd "$STAGE" && tar czf "../../$ARCHIVE" . )
           echo "ARCHIVE_PATH=${ARCHIVE}" >> "$GITHUB_ENV"
 
-      # ---- Windows packaging ------------------------------------------
       - name: Package (Windows)
         if: runner.os == 'Windows'
         working-directory: ${{ env.EXECUTA_DIR }}
@@ -133,7 +128,6 @@ jobs:
           Compress-Archive -Path "$Stage/*" -DestinationPath $Archive
           Add-Content -Path $env:GITHUB_ENV -Value "ARCHIVE_PATH=$Archive"
 
-      # ---- Checksum (all platforms) ------------------------------------
       - name: Generate SHA-256 checksum
         working-directory: ${{ env.EXECUTA_DIR }}
         shell: bash
@@ -164,9 +158,9 @@ jobs:
       - name: Publish to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          token: ${{ secrets.RELEASE_PAT || github.token }}
           tag_name: ${{ env.RELEASE_TAG }}
           draft: false
           files: |
-            ${{ env.EXECUTA_DIR }}/dist-anna/*.tar.gz
-            ${{ env.EXECUTA_DIR }}/dist-anna/*.zip
-            ${{ env.EXECUTA_DIR }}/dist-anna/*.sha256
+            ${{ env.EXECUTA_DIR }}/${{ env.ARCHIVE_PATH }}
+            ${{ env.EXECUTA_DIR }}/${{ env.ARCHIVE_PATH }}.sha256
