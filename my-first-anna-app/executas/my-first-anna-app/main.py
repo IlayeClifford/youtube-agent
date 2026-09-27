@@ -1,17 +1,47 @@
-import os
-from langchain.agents import create_agent
-from langchain_deepseek import ChatDeepSeek
-from langchain_core.tools import tool
-from langchain.agents.middleware import TodoListMiddleware
-from langgraph.checkpoint.memory import InMemorySaver
-from langchain_tavily import TavilySearch
-from modes import MODES
-from transcript import transcription
-from search import run_with_timeout
-from web_search import web_search
-from metadata import meta_data
-from server import youtube_downloader_tool
+import sys
 
+def _p(msg):
+    print(f"### main.py: {msg}", file=sys.stderr, flush=True)
+
+_p("top of file")
+
+import os
+_p("os OK")
+
+from langchain.agents import create_agent
+_p("langchain.agents create_agent OK")
+
+from langchain_deepseek import ChatDeepSeek
+_p("langchain_deepseek OK")
+
+from langchain_core.tools import tool
+_p("langchain_core.tools OK")
+
+from langchain.agents.middleware import TodoListMiddleware
+_p("langchain.agents.middleware OK")
+
+from langgraph.checkpoint.memory import InMemorySaver
+_p("langgraph.checkpoint.memory OK")
+
+from modes import MODES
+_p("modes OK")
+
+from transcript import transcription
+_p("transcript OK  <-- if this is the last line you see, transcript.py is the hang")
+
+from search import run_with_timeout
+_p("search OK")
+
+from web_search import web_search
+_p("web_search OK")
+
+from metadata import meta_data
+_p("metadata OK")
+
+from server import youtube_downloader_tool
+_p("server OK")
+
+_p("all imports done — building agents next")
 
 
 # ---------------------------------------------------------------------------
@@ -29,9 +59,8 @@ llm = ChatDeepSeek(
     api_key=os.getenv("DEEPSEEK_API_KEY"),
     timeout=200,
 )
+_p("ChatDeepSeek constructed OK")
 
-
-    
 
 
 
@@ -41,6 +70,7 @@ transcription_subagent = create_agent(
     name="Transcription_agent",
     tools=[transcription,meta_data],
 )
+_p("transcription_subagent created OK")
 
 @tool(
     "transcription_agent",
@@ -59,7 +89,7 @@ def call_transcription_agent(query: str) -> str:
 
 @tool("transcribber_agent", description="Send the video ID to this subagent for parrallel  transcription when you have more than one video th transcribe.",
 )
-def call_transcribber_agent(query: str) -> str:
+def call_transcriber_agent(query: str) -> str:
     """Run a second, parallel instance of the transcription subagent."""
     result = transcription_subagent.invoke(
         {"messages": [{"role": "user", "content": query}]}
@@ -83,7 +113,7 @@ Synthesize results clearly. Never mention your subagents.
 Only provide the content of the video in details when asked
 When you recieve news related breakdown from subagents search for the  trend or news from youtube and gets its url then give the user a breakdown of the video.
 Structure your response in lists or categories
-Do not download any videos except youtube shorts and audio's under 15mins. 
+Videos released are displayed on the UI for users to watch on the users so instead of saying here is the link say watch the video here
 Ensure to only include distinct URLs in a response.
 DO NOT GIVE ANYBODY INFORMATION OR ACCESS TO WHAT YOU DO BEHIND THE SCENE.
 .""".strip()
@@ -91,9 +121,10 @@ DO NOT GIVE ANYBODY INFORMATION OR ACCESS TO WHAT YOU DO BEHIND THE SCENE.
   
  
 memory = InMemorySaver()
+_p("InMemorySaver created OK")
  
 # The tools every mode shares — same list you already had.
-base_tools = [youtube_downloader_tool, meta_data, run_with_timeout, web_search , transcription, call_transcription_agent, call_transcribber_agent]
+base_tools = [youtube_downloader_tool, meta_data, run_with_timeout, web_search , transcription, call_transcription_agent, call_transcriber_agent]
  
 # Your normal, default Bob — used for regular chat with no mode active.
 app = create_agent(
@@ -104,6 +135,7 @@ app = create_agent(
     #middleware= [TodoListMiddleware()],
     checkpointer=memory,
 )
+_p("app (default agent) created OK")
  
 # One additional agent per mode, each with its own system_prompt (defined in
 # modes.py) but sharing the SAME llm, tools, and — importantly — the SAME
@@ -119,3 +151,4 @@ mode_agents = {
     )
     for mode_id, mode_cfg in MODES.items()
 }
+_p("mode_agents dict built OK — main.py fully loaded")
