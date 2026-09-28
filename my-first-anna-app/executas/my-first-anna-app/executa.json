@@ -1,25 +1,45 @@
 {
   "slug": "my-first-anna-app",
   "name": "my-first-anna-app",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "executa_type": "tool",
   "description": "Bob — a YouTube research and download assistant.",
-  "tool_id": "tool-dev-my-first-anna-app",
+  "tool_id": "tool-ai-ilaye-my-first-anna-app-y4u6ymnc",
   "type": "python",
 
   "distribution": {
+    "active": "binary",
     "profiles": {
-      "active": "binary",
+      "local": {
+        "type": "local",
+        "supports_protocol": true
+      },
       "binary": {
-        "type": "binary"
+        "type": "binary",
+        "supports_protocol": true,
+        "binary_artifacts": {
+          "darwin-arm64": {
+            "path": "dist-anna/my-first-anna-app-{version}-darwin-arm64.tar.gz",
+            "entrypoint": "bin/my-first-anna-app",
+            "format": "tar.gz"
+          },
+          "darwin-x86_64": {
+            "path": "dist-anna/my-first-anna-app-{version}-darwin-x86_64.tar.gz",
+            "entrypoint": "bin/my-first-anna-app",
+            "format": "tar.gz"
+          },
+          "linux-x86_64": {
+            "path": "dist-anna/my-first-anna-app-{version}-linux-x86_64.tar.gz",
+            "entrypoint": "bin/my-first-anna-app",
+            "format": "tar.gz"
+          },
+          "windows-x86_64": {
+            "path": "dist-anna/my-first-anna-app-{version}-windows-x86_64.zip",
+            "entrypoint": "bin/my-first-anna-app.exe",
+            "format": "zip"
+          }
+        }
       }
     }
-  },
-
-  "binary_artifacts": [
-    { "platform": "darwin-arm64",   "path": "dist-anna/my-first-anna-app-0.3.0-darwin-arm64.tar.gz" },
-    { "platform": "darwin-x86_64",  "path": "dist-anna/my-first-anna-app-0.3.0-darwin-x86_64.tar.gz" },
-    { "platform": "linux-x86_64",   "path": "dist-anna/my-first-anna-app-0.3.0-linux-x86_64.tar.gz" },
-    { "platform": "windows-x86_64", "path": "dist-anna/my-first-anna-app-0.3.0-windows-x86_64.zip" }
-  ]
+  }
 }
