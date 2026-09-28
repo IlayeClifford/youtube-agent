@@ -1,0 +1,17 @@
+{
+  "name": "my-first-anna-app",
+  "display_name": "Bob",
+  "version": "0.3.1",
+  "description": "Bob — a YouTube research and download assistant.",
+  "runtime": {
+    "binary": {
+      "entrypoint": {
+        "default": "bin/my-first-anna-app",
+        "windows-x86_64": "bin/my-first-anna-app.exe"
+      },
+      "permissions": {
+        "bin/my-first-anna-app": "0o755"
+      }
+    }
+  }
+}
