@@ -54,13 +54,22 @@ CREDENTIAL_NAMES = [
     "DEEPSEEK_API_KEY", "YOUTUBE_API_KEY", "GROQ_API_KEY", "DEEPGRAM_API_KEY",
     "QDRANT_URL", "QDRANT_API_KEY", "PROXY_NAME", "PROXY_PASSWORD",
     "LANGSMITH_API_KEY", "FIRECRAWL_API_KEY",
+    # server.py reads these with os.environ[...] at import time, so a missing
+    # one crashes `import main` — and therefore every chat call.
+    "B2_BUCKET_NAME", "B2_KEY_ID", "B2_APPLICATION_KEY", "B2_ENDPOINT",
 ]
 
+# Required = the plugin cannot load without them.
+REQUIRED_CREDENTIALS = (
+    "DEEPSEEK_API_KEY", "YOUTUBE_API_KEY",
+    "B2_BUCKET_NAME", "B2_KEY_ID", "B2_APPLICATION_KEY", "B2_ENDPOINT",
+)
+
 MANIFEST = {
-    "name": "tool-dev-my-first-anna-app",
-    "version": "0.2.0",
+    "name": "tool-ai-ilaye-my-first-anna-app-y4u6ymnc",
+    "version": "0.3.1",
     "credentials": [
-        {"name": n, "required": n in ("DEEPSEEK_API_KEY", "YOUTUBE_API_KEY"), "sensitive": True}
+        {"name": n, "required": n in REQUIRED_CREDENTIALS, "sensitive": True}
         for n in CREDENTIAL_NAMES
     ],
     "tools": [
