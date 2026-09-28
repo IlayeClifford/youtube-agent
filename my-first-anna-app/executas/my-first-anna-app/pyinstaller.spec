@@ -141,7 +141,7 @@ coll = COLLECT(
     exe,
     a.binaries,
     a.zipfiles,
-    a.data,
+    a.datas,
     strip=False,
     upx=False,
     name="my-first-anna-app",
