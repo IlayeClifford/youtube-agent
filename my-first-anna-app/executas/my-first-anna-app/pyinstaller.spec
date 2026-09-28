@@ -40,6 +40,7 @@ for package_name in (
 # Only these package subtrees are loaded dynamically by the application.
 hiddenimports.extend(collect_submodules("fastembed"))
 hiddenimports.extend(collect_submodules("qdrant_client.grpc"))
+hiddenimports.extend(collect_submodules("langchain_community"))
 
 # Application modules loaded by bob_plugin/main.
 hiddenimports += [
@@ -61,10 +62,7 @@ hiddenimports += [
     "langchain_core.runnables",
     "langchain_core.tools",
     "langchain_deepseek",
-    "langchain_tavily",
     "langchain_qdrant",
-    "langchain_huggingface",
-    "langchain_community.embeddings.fastembed",
 
     # Qdrant/gRPC generated modules.
     "grpc",
@@ -95,6 +93,9 @@ hiddenimports += [
 excludes = [
     "langchain.mcp",
     "fastmcp",
+    "langchain_tavily",
+    "langchain_huggingface",
+    "langchain_community.embeddings.fastembed",
     "torch.utils.tensorboard",
     "tensorboard",
     "pytest",
@@ -140,7 +141,7 @@ coll = COLLECT(
     exe,
     a.binaries,
     a.zipfiles,
-    a.datas,
+    a.data,
     strip=False,
     upx=False,
     name="my-first-anna-app",
