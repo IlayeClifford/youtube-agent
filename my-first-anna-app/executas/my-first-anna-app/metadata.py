@@ -1,4 +1,5 @@
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 import os
 from langchain.tools import tool
 from dotenv import load_dotenv
@@ -13,31 +14,38 @@ def meta_data(video_id: str):
     Title of the video, Channel name, Description
     """
 
+    try:
+        # 1. Set up your API Key (from Google Cloud Console)
+        api_key = os.getenv("YOUTUBE_API_KEY")
+        youtube = build('youtube', 'v3', developerKey=api_key)
 
-# 1. Set up your API Key (from Google Cloud Console)
-    api_key = os.getenv("YOUTUBE_API_KEY")
-    youtube = build('youtube', 'v3', developerKey=api_key)
+        # 2. Call the API
+        request = youtube.videos().list(
+            part="snippet,statistics,contentDetails",
+            id=video_id
+        )
+        response = request.execute()
 
+        # 3. Access the metadata
+        items = response.get('items') or []
+        if not items:
+            return (
+                f"Couldn't find a video with ID '{video_id}' — it may be "
+                "private, deleted, or the ID might be wrong."
+            )
 
-    video_id = video_id
-    # 3. Call the API
-    request = youtube.videos().list(
-        part="snippet,statistics,contentDetails",
-        id=video_id
-    )
-    response = request.execute()
+        video_data = items[0]
+        channel_name = video_data['snippet']['channelTitle']
+        video_description = video_data['snippet']['description']
+        title = video_data['snippet']['title']
 
-    # 4. Access the metadata
-    video_data = response['items'][0]
-    has_captions = video_data['contentDetails']['caption']
-    channel_name = video_data['snippet']['channelTitle']
-    video_description = video_data['snippet']['description']
+        return f"Title: {title}\n Channel name {channel_name}\n Video content: {video_description}"
 
-    title = video_data['snippet']['title']
-    
+    except HttpError as e:
+        return f"YouTube API error while looking up '{video_id}': {e.reason}"
+    except Exception as e:
+        return f"Unexpected error looking up video '{video_id}': {e}"
 
-    return f"Title: {title}\n Channel name {channel_name}\n Video content: {video_description}"
 
 if __name__ == "__main__":
     print("Set up is complete")
-
