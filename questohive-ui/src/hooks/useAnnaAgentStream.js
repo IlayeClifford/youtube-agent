@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const TOOL_ID = "tool-dev-my-first-anna-app";
+const TOOL_ID = "tool-ai-ilaye-my-first-anna-app-y4u6ymnc";
 
 // Job deadline, not a network timeout — comfortably above Bob's own ~150s
 // average tool-calling latency, nowhere near the 60s..24h bounds Anna
 // enforces. This is what replaces the 90-second tools.invoke ceiling.
-const CHAT_TIMEOUT_MS = 5 * 60 * 1000;
+const CHAT_TIMEOUT_MS = 500 * 60 * 1000;
 
 // Plain tools.invoke ceiling per host-api-tools.md — the public edge's
 // held-request max is 90s regardless of what we pass. stt/tts/feedback are
 // all well under that, so they stay on tools.invoke rather than the async
 // job channel chat uses.
-const SYNC_TOOL_TIMEOUT_MS = 30 * 1000;
+const SYNC_TOOL_TIMEOUT_MS = 300 * 1000;
 
 // How long we keep quietly polling for the real result after the client's
 // own invokeAsyncAwait gives up early (wait_timeout). The job itself is
@@ -21,8 +21,8 @@ const SYNC_TOOL_TIMEOUT_MS = 30 * 1000;
 // time the client stopped watching it. clientTag is what lets us re-find
 // that same job instead of abandoning it. Bounded well under CHAT_TIMEOUT_MS
 // so we never wait past the job's real deadline.
-const RECOVERY_WINDOW_MS = 9000 * 1000;
-const RECOVERY_POLL_MS = 40000;
+const RECOVERY_WINDOW_MS = 90 * 1000;
+const RECOVERY_POLL_MS = 4000;
 const CLIENT_TAG = "bob-chat";
 
 // Maps the documented invokeAsyncAwait error codes to something worth
@@ -188,6 +188,7 @@ export function useAnnaAgentStream() {
         // `data` payload already, not `result.data`.
         applyResult(result);
       } catch (err) {
+        console.error("invokeAsyncAwait error:", err); // CHANGED: log full error to browser console
         if (err?.code === "wait_timeout") {
           const recovered = await tryRecoverJob();
           if (recovered) {
@@ -196,7 +197,19 @@ export function useAnnaAgentStream() {
             return;
           }
         }
-        updateStreamingMessage({ text: friendlyAsyncError(err), streaming: false, status: undefined });
+        // CHANGED: dump every property of the error so the real cause is visible
+        let rawDetails;
+        try {
+          rawDetails = JSON.stringify(err, Object.getOwnPropertyNames(err), 2);
+        } catch {
+          rawDetails = String(err);
+        }
+        // CHANGED: friendly message + real error details shown in the chat bubble
+        updateStreamingMessage({
+          text: `${friendlyAsyncError(err)}\n\n[DEBUG]\ncode: ${err?.code}\nmessage: ${err?.message}\nfull error: ${rawDetails}`,
+          streaming: false,
+          status: undefined,
+        });
       } finally {
         setThinking(false);
       }
